@@ -1,67 +1,54 @@
 #!/bin/bash
 
-# --- 1. Repositorios y CachyOS ---
-sudo pacman-key --recv-keys F3B607488DB3A048
-sudo pacman-key --lsign-key F3B607488DB3A048
-sudo pacman -U 'https://mirror.cachyos.org/cachyos/x86_64/cachyos-keyring-20240331-1-any.pkg.tar.zst'
-sudo pacman -U 'https://mirror.cachyos.org/cachyos/x86_64/cachyos-mirrorlist-1-1-any.pkg.tar.zst'
+# --- 1. Preparar CachyOS usando su método oficial ---
+echo "Descargando e instalando el repositorio de CachyOS..."
+curl -L https://mirror.cachyos.org/cachyos-repo.tar.xz -o cachyos-repo.tar.xz
+tar xvf cachyos-repo.tar.xz
+cd cachyos-repo
+sudo ./cachyos-repo.sh
+cd .. && rm -rf cachyos-repo*
 
-sudo bash -c 'cat <<EOF > /etc/pacman.conf
-[options]
-HoldPkg = pacman glibc
-Architecture = auto
-CheckSpace
+# --- 2. Actualización y herramientas base ---
+sudo pacman -Syu --noconfirm
+sudo pacman -S --needed --noconfirm \
+    base-devel sddm limine ccache \
+    nautilus networkmanager \
+    pipewire pipewire-pulse wireplumber \
+    polkit-gnome gnome-keyring \
+    papirus-icon-theme \
+    niri xwayland-satellite \
+    brave-bin ghostty
 
-[cachyos]
-Include = /etc/pacman.d/cachyos-mirrorlist
-
-[core]
-Include = /etc/pacman.d/mirrorlist
-
-[extra]
-Include = /etc/pacman.d/mirrorlist
-
-[multilib]
-Include = /etc/pacman.d/mirrorlist
-EOF'
-
-# --- 2. Instalación de paquetes ---
-sudo pacman -Syu --noconfirm base-devel sddm limine ccache nautilus networkmanager pipewire pipewire-pulse wireplumber polkit-gnome gnome-keyring papirus-icon-theme niri xwayland-satellite brave-bin ghostty
-
-# --- 3. Instalación de gestores AUR ---
+# --- 3. Instalación de Yay y Paru ---
 git clone https://aur.archlinux.org/yay.git && cd yay && makepkg -si --noconfirm && cd .. && rm -rf yay
 git clone https://aur.archlinux.org/paru.git && cd paru && makepkg -si --noconfirm && cd .. && rm -rf paru
 
-# Configuración Paru
+# Configuración de Paru para evitar preguntas innecesarias
 sudo bash -c 'cat <<EOF >> /etc/paru.conf
 [options]
 BottomUp
 SudoLoop
 EOF'
 
-# --- 4. Instalación de Noctalia y Pkgtop-up ---
+# --- 4. Instalación de componentes adicionales (AUR) ---
 paru -S --noconfirm noctalia-shell-git pkgtop-up
 
-# --- 5. Configuración Automática de Entorno ---
-# Crear directorios de configuración
-mkdir -p ~/.config/niri
-mkdir -p ~/.config/gtk-3.0
+# --- 5. Configuración de Entorno ---
+mkdir -p ~/.config/niri ~/.config/gtk-3.0
 
-# Configurar GTK para usar Papirus
-echo "[Settings]" > ~/.config/gtk-3.0/settings.ini
-echo "gtk-icon-theme-name=Papirus-Dark" >> ~/.config/gtk-3.0/settings.ini
+# Configurar iconos
+echo -e "[Settings]\ngtk-icon-theme-name=Papirus-Dark" > ~/.config/gtk-3.0/settings.ini
 
-# Autoinicio de Noctalia dentro de Niri
-# Esto crea un archivo de configuración base para Niri que lanza Noctalia
-cat <<EOF > ~/.config/niri/config.kdl
-spawn-at-startup "noctalia"
-prefer-no-csd
-EOF
+# Configurar Niri para arrancar Noctalia
+echo -e 'spawn-at-startup "noctalia"\nprefer-no-csd' > ~/.config/niri/config.kdl
 
-# --- 6. Servicios ---
+# --- 6. Habilitar Servicios ---
 sudo systemctl enable sddm
 sudo systemctl enable NetworkManager
 
-echo "Instalación completada con éxito."
-echo "IMPORTANTE: Tras reiniciar, si usas una tarjeta NVIDIA,"
-echo "deberás instalar los drivers (nvidia-cachyos) desde el repo de CachyOS."
+echo "--------------------------------------------------------"
+echo "¡INSTALACIÓN COMPLETADA CON ÉXITO!"
+echo "IMPORTANTE: Antes de reiniciar, instala Limine en tu disco:"
+echo "sudo limine-install-uefi-x86_64 /dev/sdX"
+echo "(Cambia /dev/sdX por tu disco real)"
+echo "--------------------------------------------------------"
